@@ -1,0 +1,190 @@
+---
+title: "Qol Data Analysis Solution"
+author: "Xiaomeng Huang"
+date: "12/22/2018"
+output: html_document
+
+---
+
+#Exercise 1
+
+```{r}
+library("googledrive")
+library("readxl")
+fid="1Ldx5qRZ5CYAPnTn27V00wh7PeuXhPtWW"
+q=drive_download(as_id(fid),overwrite = T)
+QolDataAnalyst=read_excel(q$local_path)
+```
+
+#Exercise 2
+
+#i
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+n=nrow(QolDataAnalyst)
+
+department=QolDataAnalyst$`What is your current academic department or institute?`[2:n]
+
+s=QolDataAnalyst[2:n,5:16]
+names(s)=QolDataAnalyst[1,5:16]
+s=sapply(s,as.numeric)
+s2=data.frame(s,department)
+s2=s2 %>% gather(feature,satisfaction,-department)
+smean=aggregate(.~feature+department,data=s2, FUN = mean)
+
+i=QolDataAnalyst[2:n,17:28]
+names(i)=QolDataAnalyst[1,5:16]
+i=sapply(i,as.numeric)
+i2=data.frame(i,department)
+i2=i2 %>% gather(feature,importance,-department)
+imean=aggregate(.~feature+department,data=i2, FUN = mean)
+
+Q1=merge(smean,imean,by=c("department","feature"))
+
+
+#plot
+p1=ggplot(Q1) + geom_point(aes(x=importance,y=satisfaction,color=feature)) +facet_wrap(~department,ncol=4)+ggtitle("Satisfaction vs. Importance aross different department")
+p1
+
+```
+
+
+#ii
+```{r}
+library(plyr)
+m1=match("The following skills have been improved/enhanced by my time at Columbia SEAS.",names(QolDataAnalyst))
+sk=QolDataAnalyst[2:n,71:80]
+names(sk)=QolDataAnalyst[1,71:80]
+sk2=sk%>%gather(skills,rate)
+sumfun=function(x){return(table(x$rate))}
+sk3=ddply(sk2,.(skills),sumfun)
+skillrate=sk3%>%gather(rate,Frequency,"1":"5")
+skillrate=ddply(skillrate,.(skills),transform,percentage=round(Frequency/sum(Frequency)*100,2))
+
+ggplot(skillrate,aes(x=skills,y=percentage,fill=rate)) + geom_bar(stat="identity",position=position_stack(reverse=T)) + geom_text(aes(label =percentage),position = position_stack(vjust = 0.5,reverse=T), size = 3) + labs(title="Skills have been improved/enhanced") + theme(panel.background=element_rect(fill='grey75'))  + scale_fill_brewer(palette=9) +coord_flip()
+```
+
+##Excercise 3
+
+#i
+```{r}
+m2=match("I am satisfied with the following with respect to Blue Java Café in Carleton Commons.",names(QolDataAnalyst))
+blue=QolDataAnalyst[2:n,191:197]
+names(blue)=QolDataAnalyst[1,191:197]
+blue2=blue%>%gather(aspect,rate)
+blue3=ddply(blue2,.(aspect),sumfun)
+
+score=function(x){
+  s=x$`0`*(0)+x$`1`*(-1)+x$`2`*(-.5)+x$`3`*(0)+x$`4`*(.5)+x$`5`*(1)
+  return(s)
+}
+
+bluerate=ddply(blue3,.(aspect),score)
+bluerate=bluerate%>%arrange(desc(bluerate$V1))
+names(bluerate)=c("aspect","overall rate")
+
+knitr::kable(x=bluerate)
+```
+
+<p><strong>According to the data, students are most satisfied with the availability of healthy food options, followed by friendliness of staff. They are most unsatisfied with the availability of food for dietary restrictions (kosher, vegan, gluten-free, etc.), followed by cost, hours of operations, variety of food options and cleanliness . Therefore, Blue Java Café in Carleton Commons can start from improving these ascpects to increase students' satisfaction.</strong></p>
+
+
+#ii
+```{r}
+m3=match("The following resources at Science and Engineering Library are useful to me:",names(QolDataAnalyst))
+lib=QolDataAnalyst[2:n,163:168]
+names(lib)=QolDataAnalyst[1,163:168]
+lib2=lib%>%gather(resource,rate)
+lib3=ddply(lib2,.(resource),sumfun)
+SElib=ddply(lib3,.(resource),score)
+SElib=SElib%>%arrange(desc(SElib$V1))
+SElib$resource
+```
+
+<p><strong>The most significant resources at the Science and Engineering Library in a descending order of significance are: Computer terminal, Individual study and/or work space, Hours of operation, Printing and scanning facilities, Reference materials, Group study and/or work space.</strong></p>
+
+##Exercise 4
+```{r}
+m4=match("The following resources provided by the Center for Career Education (CCE) have been useful in my job search and application process.",names(QolDataAnalyst))
+cce=QolDataAnalyst[2:n,89:96]
+names(cce)=QolDataAnalyst[1,89:96]
+cce2=cce%>%gather(resource,rate)
+cce3=ddply(cce2,.(resource),sumfun)
+CCE=ddply(cce3,.(resource),score)
+CCE=CCE%>%arrange(desc(CCE$V1))
+names(CCE)=c("resource","overall rate")
+
+m5=match("I find the following features of Canvas convenient.",names(QolDataAnalyst))
+canvas=QolDataAnalyst[2:n,46:53]
+names(canvas)=QolDataAnalyst[1,46:53]
+can2=canvas%>%gather(feature,rate)
+can3=ddply(can2,.(feature),sumfun)
+Canvas=ddply(can3,.(feature),score)
+Canvas=Canvas%>%arrange(desc(Canvas$V1))
+names(Canvas)=c("feature","overall rate")
+
+m6=match("I find the following features of SSOL convenient.",names(QolDataAnalyst))
+ssol=QolDataAnalyst[2:n,54:59]
+names(ssol)=QolDataAnalyst[1,54:59]
+ssol2=ssol%>%gather(features,rate)
+ssol3=ddply(ssol2,.(features),sumfun)
+SSOL=ddply(ssol3,.(features),score)
+SSOL=SSOL%>%arrange(desc(SSOL$V1))
+names(SSOL)=c("features","overall rate")
+
+
+m7=match("Orientation helped me become acclimated with:",names(QolDataAnalyst))
+or=QolDataAnalyst[2:n,139:144]
+names(or)=QolDataAnalyst[1,139:144]
+or2=or%>%gather(resource,rate)
+or3=ddply(or2,.(resource),sumfun)
+Orientation=ddply(or3,.(resource),score)
+Orientation=Orientation%>%arrange(desc(Orientation$V1))
+names(Orientation)=c("resource","overall rate")
+
+
+m8=match("I enjoy attending the following types of events:",names(QolDataAnalyst))
+eve=QolDataAnalyst[2:n,122:129]
+names(eve)=QolDataAnalyst[1,122:129]
+eve2=eve%>%gather(types,rate)
+eve3=ddply(eve2,.(types),sumfun)
+Events=ddply(eve3,.(types),score)
+Events=Events%>%arrange(desc(Events$V1))
+names(Events)=c("types","overall rate")
+
+
+usefulness=function(x){
+  r=sum(x$`3`+x$`4`+x$`5`)/sum(x$`1`+x$`2`+x$`3`+x$`4`+x$`5`)*100
+  return(r)
+}
+files=list(cce3,can3,ssol3,or3,eve3)
+df=sapply(files,usefulness)
+df=as.data.frame(df)
+df=cbind(c("CCE","Canvas","SSOL","Orientation","Events"),df)
+names(df)=c("Category","Effectiveness/usefulness (%)")
+
+
+
+
+l=list(t(CCE$resource),t(Canvas$feature),t(SSOL$features),t(Orientation$resource),t(Events$types))
+dfun=function(x){return(as.data.frame(x))}
+ll=lapply(l,dfun)
+eff=data.frame(rbind.fill(ll))
+eff=cbind(c("CCE.resource","Canvas.feature","SSOL.feature","Orientation.resource","Events.types"),eff)
+names(eff)=c("Category","most effective","2nd effective","3rd effective","4th effective","5th effective","6th effective","7th effective","8th effective")
+
+knitr::kable(x=eff)
+
+library(officer)
+library(magrittr)
+
+cap1="Overall, the effectiveness/usefulness about Center for Career Education (CCE), Canvas, SSOL, Orientation and Events is around 60%. \n According to the survey data, CCE Website seems to be the most useful resources in students' job search and application process. The most convenient features of Canvas and SSOL are Discussion and Waitlist, respectively. Orientation helped students the most in becoming acclimated with New York City. Students enjoys entertainment events (Sports games, AMC movie nights) the most."
+
+slide=read_pptx() %>% add_slide(layout="Two Content",master="Office Theme") %>% ph_with_text(type="title", str="Executive Summary of Effectiveness/Usefulness") %>% ph_with_text(type="body",index=2,str=cap1) %>% ph_with_table(value=df,type="body",index=1)
+
+print(slide,target="~/Desktop/Qol Ex4 Solution.pptx")
+
+```
+
